@@ -1,22 +1,23 @@
 {
-  "name": "homebridge-plugin-name",
-  "displayName": "Plugin Name",
+  "name": "homebridge-rpi-gpio",
+  "displayName": "Rpi Gpio Monitor",
   "type": "module",
   "version": "1.0.0",
   "private": true,
-  "description": "A short description about what your plugin does.",
-  "author": "Your Name",
+  "description": "The goal of this repository is to monitor the input GPIO and provide the corresponding output.",
+  "author": "huaiwei.lin",
   "license": "Apache-2.0",
-  "homepage": "https://github.com/USERNAME/GITHUB_PROJECT_NAME#readme",
+  "homepage": "https://github.com/linmartintw/homebridge-rpi-gpio#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME.git"
+    "url": "https://github.com/linmartintw/homebridge-rpi-gpio.git"
   },
   "bugs": {
-    "url": "https://github.com/USERNAME/GITHUB_PROJECT_NAME/issues"
+    "url": "https://github.com/linmartintw/homebridge-rpi-gpio/issues"
   },
   "keywords": [
-    "homebridge-plugin"
+    "homebridge-plugin",
+    "gpio"
   ],
   "main": "dist/index.js",
   "engines": {
@@ -42,6 +43,7 @@
     "typescript-eslint": "^8.12.2"
   },
   "dependencies": {
-    "homebridge-lib": "^7.1.0"
+    "homebridge-lib": "^7.1.0",
+    "onoff": "^6.0.3"
   }
 }
