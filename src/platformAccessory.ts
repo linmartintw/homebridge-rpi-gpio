@@ -1,6 +1,13 @@
-import type { CharacteristicValue, PlatformAccessory, Service } from 'homebridge';
-
-import type { RpiHomebridgePlatform } from './platform.js';
+import {
+  Characteristic,
+  CharacteristicEventTypes,
+  CharacteristicGetCallback,
+  type CharacteristicValue,
+  type PlatformAccessory,
+  type Service,
+} from 'homebridge';
+import type { RpiHomebridgePlatform, GpioDevice } from './platform.js';
+import { Gpio } from 'onoff';
 
 /**
  * Platform Accessory
@@ -9,140 +16,154 @@ import type { RpiHomebridgePlatform } from './platform.js';
  */
 export class RpiPlatformAccessory {
   private service: Service;
+  private device: GpioDevice;
+  private gpio: Gpio | null = null;
+  private lastValue: number = 0;
 
-  /**
-   * These are just used to create a working example
-   * You should implement your own code to track the state of your accessory
-   */
-  private exampleStates = {
-    On: false,
-    Brightness: 100,
-  };
 
   constructor(
     private readonly platform: RpiHomebridgePlatform,
     private readonly accessory: PlatformAccessory,
   ) {
+
+    // Get the device information from accessory context
+    this.device = accessory.context.device;
+
+    // create ContactSensor service
+    this.service = this.accessory.getService(this.platform.Service.ContactSensor) ||
+      this.accessory.addService(this.platform.Service.ContactSensor);
+
+    // set the service name, this is what is displayed as the default name on the Home app
+    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.displayName);
+
+    // set the handler of GET
+    this.service.getCharacteristic(this.platform.Characteristic.ContactSensorState)
+      .on(CharacteristicEventTypes.GET,this.getState.bind(this));
+
     // set accessory information
+    this.setupAccessoryInformation();
+
+    // initialization Gpio
+    if (this.initGpio()) {
+      this.platform.log.info(`GPIO Contact Sensor initialized on pin ${this.device.pin}`);
+    }
+
+    // Setup Gpio shutdown hook
+    this.platform.api.on('shutdown', () => {
+      this.unexportGpio();
+    });
+
+  }
+
+  getState(callback: CharacteristicGetCallback): void {
+    try {
+
+      const value = this.gpio ? this.gpio.readSync() : undefined;
+
+      if (value === undefined) {
+        this.platform.log.warn(`Cannot read from GPIO ${this.device.pin}, returning default state`);
+        callback(null, this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED);
+        return;
+      }
+
+      let effectiveValue = value;
+      if (this.device.invertState) {
+        effectiveValue = value === 1 ? 0 : 1;
+      }
+      const state = effectiveValue === 1
+        ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
+        : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
+
+      this.platform.log.debug(`Read sensor state for GPIO ${this.device.pin}: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
+
+      callback(null, state);
+
+    } catch (error) {
+      this.platform.log.error(`Error reading GPIO ${this.device.pin}:`, error);
+      callback(null, this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED);
+    }
+
+  }
+
+  private setupAccessoryInformation(): void {
     this.accessory.getService(this.platform.Service.AccessoryInformation)!
       .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
       .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
       .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
+  }
 
-    // get the LightBulb service if it exists, otherwise create a new LightBulb service
-    // you can create multiple services for each accessory
+  private initGpio(): boolean {
+    try {
+      const options = {
+        debounceTimeout: this.device.debounceMs || 100,
+      };
 
-    if (accessory.context.device.CustomService) {
-      // This is only required when using Custom Services and Characteristics not support by HomeKit
-      this.service = this.accessory.getService(this.platform.CustomServices[accessory.context.device.CustomService]) ||
-        this.accessory.addService(this.platform.CustomServices[accessory.context.device.CustomService]);
-    } else {
-      this.service = this.accessory.getService(this.platform.Service.Lightbulb) || this.accessory.addService(this.platform.Service.Lightbulb);
+      // Create GPIO instance for input with edge detection
+      this.gpio = new Gpio(this.device.pin, 'in', 'both', options);
+
+      // read the first state and update state
+      const initValue = this.gpio.readSync();
+      this.lastValue = initValue;
+      this.updateSensorState(initValue);
+
+      // watchdog
+      this.setupGpioWatchDog();
+
+      return true;
+
+    } catch (error) {
+      this.platform.log.error(`Failed to initialize GPIO ${this.device.pin}:`, error);
+      return false;
+    }
+  }
+
+  async unexportGpio() {
+    try {
+      if (this.gpio) {
+        this.gpio.unwatchAll();
+        await this.gpio.unexport();
+        this.gpio = null;
+        this.platform.log.info(`GPIO pin ${this.device.pin} resources released`);
+      }
+    } catch (error) {
+      this.platform.log.error(`Error releasing GPIO ${this.device.pin}:`, error);
+    }
+  }
+
+  private setupGpioWatchDog(): void {
+    if (!this.gpio) {
+      return;
     }
 
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.exampleDisplayName);
+    this.gpio.watch((err, value) => {
+      if (err) {
+        this.platform.log.error(`Error watching GPIO ${this.device.pin}:`, err);
+        return;
+      }
 
-    // each service must implement at-minimum the "required characteristics" for the given service type
-    // see https://developers.homebridge.io/#/service/Lightbulb
+      if (value !== this.lastValue) {
+        this.updateSensorState(value);
+        this.lastValue = value;
+      }
 
-    // register handlers for the On/Off Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.On)
-      .onSet(this.setOn.bind(this)) // SET - bind to the `setOn` method below
-      .onGet(this.getOn.bind(this)); // GET - bind to the `getOn` method below
+    });
 
-    // register handlers for the Brightness Characteristic
-    this.service.getCharacteristic(this.platform.Characteristic.Brightness)
-      .onSet(this.setBrightness.bind(this)); // SET - bind to the `setBrightness` method below
-
-    /**
-     * Creating multiple services of the same type.
-     *
-     * To avoid "Cannot add a Service with the same UUID another Service without also defining a unique 'subtype' property." error,
-     * when creating multiple services of the same type, you need to use the following syntax to specify a name and subtype id:
-     * this.accessory.getService('NAME') || this.accessory.addService(this.platform.Service.Lightbulb, 'NAME', 'USER_DEFINED_SUBTYPE_ID');
-     *
-     * The USER_DEFINED_SUBTYPE must be unique to the platform accessory (if you platform exposes multiple accessories, each accessory
-     * can use the same subtype id.)
-     */
-
-    // Example: add two "motion sensor" services to the accessory
-    const motionSensorOneService = this.accessory.getService('Motion Sensor One Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor One Name', 'YourUniqueIdentifier-1');
-
-    const motionSensorTwoService = this.accessory.getService('Motion Sensor Two Name')
-      || this.accessory.addService(this.platform.Service.MotionSensor, 'Motion Sensor Two Name', 'YourUniqueIdentifier-2');
-
-    /**
-     * Updating characteristics values asynchronously.
-     *
-     * Example showing how to update the state of a Characteristic asynchronously instead
-     * of using the `on('get')` handlers.
-     * Here we change update the motion sensor trigger states on and off every 10 seconds
-     * the `updateCharacteristic` method.
-     *
-     */
-    let motionDetected = false;
-    setInterval(() => {
-      // EXAMPLE - inverse the trigger
-      motionDetected = !motionDetected;
-
-      // push the new value to HomeKit
-      motionSensorOneService.updateCharacteristic(this.platform.Characteristic.MotionDetected, motionDetected);
-      motionSensorTwoService.updateCharacteristic(this.platform.Characteristic.MotionDetected, !motionDetected);
-
-      this.platform.log.debug('Triggering motionSensorOneService:', motionDetected);
-      this.platform.log.debug('Triggering motionSensorTwoService:', !motionDetected);
-    }, 10000);
   }
 
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, turning on a Light bulb.
-   */
-  async setOn(value: CharacteristicValue) {
-    // implement your own code to turn your device on/off
-    this.exampleStates.On = value as boolean;
+  private updateSensorState(value: number): void {
+    let effectiveValue = value;
 
-    this.platform.log.debug('Set Characteristic On ->', value);
-  }
+    // invert value
+    if (this.device.invertState) {
+      effectiveValue = value === 1 ? 0 : 1;
+    }
 
-  /**
-   * Handle the "GET" requests from HomeKit
-   * These are sent when HomeKit wants to know the current state of the accessory, for example, checking if a Light bulb is on.
-   *
-   * GET requests should return as fast as possible. A long delay here will result in
-   * HomeKit being unresponsive and a bad user experience in general.
-   *
-   * If your device takes time to respond you should update the status of your device
-   * asynchronously instead using the `updateCharacteristic` method instead.
-   * In this case, you may decide not to implement `onGet` handlers, which may speed up
-   * the responsiveness of your device in the Home app.
+    const state = effectiveValue === 1
+      ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
+      : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
 
-   * @example
-   * this.service.updateCharacteristic(this.platform.Characteristic.On, true)
-   */
-  async getOn(): Promise<CharacteristicValue> {
-    // implement your own code to check if the device is on
-    const isOn = this.exampleStates.On;
-
-    this.platform.log.debug('Get Characteristic On ->', isOn);
-
-    // if you need to return an error to show the device as "Not Responding" in the Home app:
-    // throw new this.platform.api.hap.HapStatusError(this.platform.api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE);
-
-    return isOn;
-  }
-
-  /**
-   * Handle "SET" requests from HomeKit
-   * These are sent when the user changes the state of an accessory, for example, changing the Brightness
-   */
-  async setBrightness(value: CharacteristicValue) {
-    // implement your own code to set the brightness
-    this.exampleStates.Brightness = value as number;
-
-    this.platform.log.debug('Set Characteristic Brightness -> ', value);
+    this.platform.log.info(`GPIO ${this.device.pin} state changed: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
+    this.service.updateCharacteristic(this.platform.Characteristic.ContactSensorState, state);
   }
 }

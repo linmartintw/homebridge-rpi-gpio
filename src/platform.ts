@@ -7,6 +7,64 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
 
 /**
+ * GPIO device configuration interface
+ */
+export interface GpioDevice {
+    id: string;
+    displayName: string;
+    pin: number;
+    pullUp: boolean;
+    invertState: boolean;
+    debounceMs: number;
+  }
+
+/**
+   * Define two fixed GPIO input devices as contact sensors
+   */
+const exampleDevices: GpioDevice[] = [
+  {
+    id: 'groug1',
+    displayName: 'GPIO26',
+    pin: 538,
+    pullUp: true,
+    invertState: false,
+    debounceMs: 500,
+  },
+  {
+    id: 'group1',
+    displayName: 'GPIO19',
+    pin: 531,
+    pullUp: true,
+    invertState: false,
+    debounceMs: 500,
+  },
+  {
+    id: 'group1',
+    displayName: 'GPIO13',
+    pin: 525,
+    pullUp: true,
+    invertState: false,
+    debounceMs: 500,
+  },
+  {
+    id: 'group1',
+    displayName: 'GPIO6',
+    pin: 518,
+    pullUp: true,
+    invertState: false,
+    debounceMs: 500,
+  },
+  {
+    id: 'group1',
+    displayName: 'GPIO5',
+    pin: 517,
+    pullUp: true,
+    invertState: false,
+    debounceMs: 500,
+  },
+];
+
+/**
  * RpiHomebridgePlatform
  * This class is the main constructor for your plugin, this is where you should
  * parse the user config and discover/register accessories with Homebridge.
@@ -67,32 +125,12 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
    * must not be registered again to prevent "duplicate UUID" errors.
    */
   discoverDevices() {
-    // EXAMPLE ONLY
-    // A real plugin you would discover accessories from the local network, cloud services
-    // or a user-defined array in the platform config.
-    const exampleDevices = [
-      {
-        exampleUniqueId: 'ABCD',
-        exampleDisplayName: 'Bedroom',
-      },
-      {
-        exampleUniqueId: 'EFGH',
-        exampleDisplayName: 'Kitchen',
-      },
-      {
-        // This is an example of a device which uses a Custom Service
-        exampleUniqueId: 'IJKL',
-        exampleDisplayName: 'Backyard',
-        CustomService: 'AirPressureSensor',
-      },
-    ];
-
     // loop over the discovered devices and register each one if it has not already been registered
     for (const device of exampleDevices) {
       // generate a unique id for the accessory this should be generated from
       // something globally unique, but constant, for example, the device serial
       // number or MAC address
-      const uuid = this.api.hap.uuid.generate(device.exampleUniqueId);
+      const uuid = this.api.hap.uuid.generate(String(device.pin));
 
       // see if an accessory with the same uuid has already been registered and restored from
       // the cached devices we stored in the `configureAccessory` method above
@@ -116,10 +154,10 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
         // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
       } else {
         // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', device.exampleDisplayName);
+        this.log.info('Adding new accessory:', device.displayName);
 
         // create a new accessory
-        const accessory = new this.api.platformAccessory(device.exampleDisplayName, uuid);
+        const accessory = new this.api.platformAccessory(device.displayName, uuid);
 
         // store a copy of the device object in the `accessory.context`
         // the `context` property can be used to store any data about the accessory you may need
