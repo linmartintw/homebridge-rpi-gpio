@@ -7,7 +7,7 @@ import {
   type Service,
 } from 'homebridge';
 import type { RpiHomebridgePlatform, GpioDevice } from './platform.js';
-import { Gpio } from 'onoff';
+import { Direction, Gpio } from 'onoff';
 
 /**
  * Platform Accessory
@@ -29,13 +29,16 @@ export class RpiPlatformAccessory {
     // Get the device information from accessory context
     this.device = accessory.context.device;
 
+    const accessoryDisplayName = `${this.device.group}-${this.device.direction}-${this.device.bcmPort}`;
+
     // create ContactSensor service
     this.service = this.accessory.getService(this.platform.Service.ContactSensor) ||
       this.accessory.addService(this.platform.Service.ContactSensor);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessory.context.device.displayName);
+    this.service.setCharacteristic(this.platform.Characteristic.Name, accessoryDisplayName);
+
 
     // set the handler of GET
     this.service.getCharacteristic(this.platform.Characteristic.ContactSensorState)
@@ -100,7 +103,7 @@ export class RpiPlatformAccessory {
       };
 
       // Create GPIO instance for input with edge detection
-      this.gpio = new Gpio(this.device.pin, 'in', 'both', options);
+      this.gpio = new Gpio(this.device.pin, this.device.direction as Direction, 'both', options);
 
       // read the first state and update state
       const initValue = this.gpio.readSync();

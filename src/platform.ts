@@ -10,10 +10,10 @@ import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
  * GPIO device configuration interface
  */
 export interface GpioDevice {
-    id: string;
-    displayName: string;
+    group: string;
     pin: number;
-    pullUp: boolean;
+    direction: string;
+    bcmPort: string;
     invertState: boolean;
     debounceMs: number;
   }
@@ -23,44 +23,52 @@ export interface GpioDevice {
    */
 const exampleDevices: GpioDevice[] = [
   {
-    id: 'groug1',
-    displayName: 'GPIO26',
+    group: 'group1',
     pin: 538,
-    pullUp: true,
+    direction: 'in',
+    bcmPort: 'GPIO26',
     invertState: false,
-    debounceMs: 500,
+    debounceMs: 250,
   },
   {
-    id: 'group1',
-    displayName: 'GPIO19',
+    group: 'group1',
     pin: 531,
-    pullUp: true,
+    direction: 'in',
+    bcmPort: 'GPIO19',
     invertState: false,
-    debounceMs: 500,
+    debounceMs: 250,
   },
   {
-    id: 'group1',
-    displayName: 'GPIO13',
+    group: 'group1',
     pin: 525,
-    pullUp: true,
+    direction: 'in',
+    bcmPort: 'GPIO13',
     invertState: false,
-    debounceMs: 500,
+    debounceMs: 250,
   },
   {
-    id: 'group1',
-    displayName: 'GPIO6',
+    group: 'group1',
     pin: 518,
-    pullUp: true,
+    direction: 'in',
+    bcmPort: 'GPIO6',
     invertState: false,
-    debounceMs: 500,
+    debounceMs: 250,
   },
   {
-    id: 'group1',
-    displayName: 'GPIO5',
+    group: 'group1',
     pin: 517,
-    pullUp: true,
+    direction: 'in',
+    bcmPort: 'GPIO5',
     invertState: false,
-    debounceMs: 500,
+    debounceMs: 250,
+  },
+  {
+    group: 'group1',
+    pin: 533,
+    direction: 'out',
+    bcmPort: 'GPIO21',
+    invertState: false,
+    debounceMs: 100,
   },
 ];
 
@@ -127,10 +135,13 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
   discoverDevices() {
     // loop over the discovered devices and register each one if it has not already been registered
     for (const device of exampleDevices) {
+
+      const accessoryDisplayName = `${device.group}-${device.direction}-${device.bcmPort}`;
+
       // generate a unique id for the accessory this should be generated from
       // something globally unique, but constant, for example, the device serial
       // number or MAC address
-      const uuid = this.api.hap.uuid.generate(String(device.pin));
+      const uuid = this.api.hap.uuid.generate(accessoryDisplayName);
 
       // see if an accessory with the same uuid has already been registered and restored from
       // the cached devices we stored in the `configureAccessory` method above
@@ -153,11 +164,12 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
         // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
         // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
       } else {
+
         // the accessory does not yet exist, so we need to create it
-        this.log.info('Adding new accessory:', device.displayName);
+        this.log.info('Adding new accessory:', accessoryDisplayName);
 
         // create a new accessory
-        const accessory = new this.api.platformAccessory(device.displayName, uuid);
+        const accessory = new this.api.platformAccessory(accessoryDisplayName, uuid);
 
         // store a copy of the device object in the `accessory.context`
         // the `context` property can be used to store any data about the accessory you may need
