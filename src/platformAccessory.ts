@@ -6,7 +6,8 @@ import {
   type PlatformAccessory,
   type Service,
 } from 'homebridge';
-import type { RpiHomebridgePlatform, GpioDevice } from './platform.js';
+import type { RpiHomebridgePlatform } from './platform.js';
+import { GpioDevice } from './pinDescription.js';
 import { Direction, Gpio } from 'onoff';
 
 /**
@@ -102,7 +103,7 @@ export class RpiPlatformAccessory {
         debounceTimeout: this.device.debounceMs || 100,
       };
 
-      // Create GPIO instance for input with edge detection
+      // Create GPIO instance
       this.gpio = new Gpio(this.device.pin, this.device.direction as Direction, 'both', options);
 
       // read the first state and update state

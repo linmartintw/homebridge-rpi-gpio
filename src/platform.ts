@@ -5,72 +5,7 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
 // This is only required when using Custom Services and Characteristics not support by HomeKit
 import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
-
-/**
- * GPIO device configuration interface
- */
-export interface GpioDevice {
-    group: string;
-    pin: number;
-    direction: string;
-    bcmPort: string;
-    invertState: boolean;
-    debounceMs: number;
-  }
-
-/**
-   * Define two fixed GPIO input devices as contact sensors
-   */
-const exampleDevices: GpioDevice[] = [
-  {
-    group: 'group1',
-    pin: 538,
-    direction: 'in',
-    bcmPort: 'GPIO26',
-    invertState: false,
-    debounceMs: 250,
-  },
-  {
-    group: 'group1',
-    pin: 531,
-    direction: 'in',
-    bcmPort: 'GPIO19',
-    invertState: false,
-    debounceMs: 250,
-  },
-  {
-    group: 'group1',
-    pin: 525,
-    direction: 'in',
-    bcmPort: 'GPIO13',
-    invertState: false,
-    debounceMs: 250,
-  },
-  {
-    group: 'group1',
-    pin: 518,
-    direction: 'in',
-    bcmPort: 'GPIO6',
-    invertState: false,
-    debounceMs: 250,
-  },
-  {
-    group: 'group1',
-    pin: 517,
-    direction: 'in',
-    bcmPort: 'GPIO5',
-    invertState: false,
-    debounceMs: 250,
-  },
-  {
-    group: 'group1',
-    pin: 533,
-    direction: 'out',
-    bcmPort: 'GPIO21',
-    invertState: false,
-    debounceMs: 100,
-  },
-];
+import { exampleDevices } from './pinDescription.js';
 
 /**
  * RpiHomebridgePlatform
