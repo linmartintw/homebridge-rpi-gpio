@@ -6,7 +6,7 @@ import {
   type PlatformAccessory,
   type Service,
 } from 'homebridge';
-import type { RpiHomebridgePlatform } from './platform.js';
+import type { RpiHomebridgePlatform } from './rpiPlatform.js';
 import { GpioDevice } from './pinDescription.js';
 import { Direction, Gpio } from 'onoff';
 

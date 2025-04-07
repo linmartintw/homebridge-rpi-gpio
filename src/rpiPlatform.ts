@@ -1,6 +1,6 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 
-import { RpiPlatformAccessory } from './platformAccessory.js';
+import { RpiPlatformAccessory } from './platformAccessoryGpioInput.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
 // This is only required when using Custom Services and Characteristics not support by HomeKit

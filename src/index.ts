@@ -1,6 +1,6 @@
 import type { API } from 'homebridge';
 
-import { RpiHomebridgePlatform } from './platform.js';
+import { RpiHomebridgePlatform } from './rpiPlatform.js';
 import { PLATFORM_NAME } from './settings.js';
 
 /**
