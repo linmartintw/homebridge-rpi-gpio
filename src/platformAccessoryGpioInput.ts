@@ -1,8 +1,6 @@
 import {
-  Characteristic,
   CharacteristicEventTypes,
   CharacteristicGetCallback,
-  type CharacteristicValue,
   type PlatformAccessory,
   type Service,
 } from 'homebridge';
@@ -79,7 +77,8 @@ export class RpiPlatformAccessoryGpioInput {
         ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
         : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
 
-      this.platform.log.debug(`Read sensor state for GPIO ${this.device.pin}: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
+      this.platform.log.debug(`Read sensor state for GPIO ${this.device.pin}: ${effectiveValue} ` +
+        `(${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
 
       callback(null, state);
 
