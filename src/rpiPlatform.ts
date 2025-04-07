@@ -1,6 +1,7 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
 
-import { RpiPlatformAccessory } from './platformAccessoryGpioInput.js';
+import { RpiPlatformAccessoryGpioInput } from './platformAccessoryGpioInput.js';
+import { RpiPlatformAccessoryGpioOutput } from './platformAccessoryGpioOutput.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 
 // This is only required when using Custom Services and Characteristics not support by HomeKit
@@ -92,7 +93,14 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
-        new RpiPlatformAccessory(this, existingAccessory);
+
+        if (device.direction === 'in') {
+          new RpiPlatformAccessoryGpioInput(this, existingAccessory);
+        } else if (device.direction === 'out') {
+          new RpiPlatformAccessoryGpioOutput(this, existingAccessory);
+        } else {
+          this.log.error(`Unknown direction for GPIO ${device.pin}: ${device.direction}`);
+        }
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
         // remove platform accessories when no longer present
@@ -112,7 +120,13 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
 
         // create the accessory handler for the newly create accessory
         // this is imported from `platformAccessory.ts`
-        new RpiPlatformAccessory(this, accessory);
+        if (device.direction === 'in') {
+          new RpiPlatformAccessoryGpioInput(this, accessory);
+        } else if (device.direction === 'out') {
+          new RpiPlatformAccessoryGpioOutput(this, accessory);
+        } else {
+          this.log.error(`Unknown direction for GPIO ${device.pin}: ${device.direction}`);
+        }
 
         // link the accessory to your platform
         this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);

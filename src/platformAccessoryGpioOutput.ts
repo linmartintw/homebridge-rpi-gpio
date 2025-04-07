@@ -2,6 +2,7 @@ import {
   Characteristic,
   CharacteristicEventTypes,
   CharacteristicGetCallback,
+  CharacteristicSetCallback,
   type CharacteristicValue,
   type PlatformAccessory,
   type Service,
@@ -15,11 +16,11 @@ import { Direction, Gpio } from 'onoff';
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class RpiPlatformAccessoryGpioInput {
+export class RpiPlatformAccessoryGpioOutput {
   private service: Service;
   private device: GpioDevice;
   private gpio: Gpio | null = null;
-  private lastValue: number = 0;
+  private currentState: boolean = false;
 
 
   constructor(
@@ -32,9 +33,9 @@ export class RpiPlatformAccessoryGpioInput {
 
     const accessoryDisplayName = `${this.device.group}-${this.device.direction}-${this.device.bcmPort}`;
 
-    // create ContactSensor service
-    this.service = this.accessory.getService(this.platform.Service.ContactSensor) ||
-      this.accessory.addService(this.platform.Service.ContactSensor);
+    // create Switch service
+    this.service = this.accessory.getService(this.platform.Service.Switch) ||
+      this.accessory.addService(this.platform.Service.Switch);
 
     // set the service name, this is what is displayed as the default name on the Home app
     // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
@@ -42,15 +43,16 @@ export class RpiPlatformAccessoryGpioInput {
 
 
     // set the handler of GET
-    this.service.getCharacteristic(this.platform.Characteristic.ContactSensorState)
-      .on(CharacteristicEventTypes.GET,this.getState.bind(this));
+    this.service.getCharacteristic(this.platform.Characteristic.On)
+      .on(CharacteristicEventTypes.GET, this.getOn.bind(this))
+      .on(CharacteristicEventTypes.SET, this.setOn.bind(this));
 
     // set accessory information
     this.setupAccessoryInformation();
 
     // initialization Gpio
     if (this.initGpio()) {
-      this.platform.log.info(`GPIO Contact Sensor initialized on pin ${this.device.pin}`);
+      this.platform.log.info(`GPIO Switch initialized on pin ${this.device.pin}`);
     }
 
     // Setup Gpio shutdown hook
@@ -60,34 +62,50 @@ export class RpiPlatformAccessoryGpioInput {
 
   }
 
-  getState(callback: CharacteristicGetCallback): void {
+  getOn(callback: CharacteristicGetCallback):void {
     try {
-
       const value = this.gpio ? this.gpio.readSync() : undefined;
 
-      if (value === undefined) {
-        this.platform.log.warn(`Cannot read from GPIO ${this.device.pin}, returning default state`);
-        callback(null, this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED);
-        return;
-      }
+      let effectiveValue = value === 1;
 
-      let effectiveValue = value;
       if (this.device.invertState) {
-        effectiveValue = value === 1 ? 0 : 1;
+        effectiveValue = !effectiveValue;
       }
-      const state = effectiveValue === 1
-        ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
-        : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
 
-      this.platform.log.debug(`Read sensor state for GPIO ${this.device.pin}: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
-
-      callback(null, state);
+      this.platform.log.debug(`Read switch state for GPIO ${this.device.pin}: ${effectiveValue ? 'ON' : 'OFF'}`);
+      this.currentState = effectiveValue;
+      callback(null, this.currentState);
 
     } catch (error) {
       this.platform.log.error(`Error reading GPIO ${this.device.pin}:`, error);
-      callback(null, this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED);
+      callback(null, false);
     }
+  }
 
+  setOn(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
+    try {
+      if (!this.gpio) {
+        this.platform.log.error(`GPIO ${this.device.pin} is not initialized`);
+        callback(new Error(`GPIO ${this.device.pin} is not initialized`));
+        return;
+      }
+
+      const boolValue = value as boolean;
+      this.currentState = boolValue;
+
+      let gpioValue = boolValue ? 1 : 0;
+      if (this.device.invertState) {
+        gpioValue = boolValue ? 0 : 1;
+      }
+
+      this.gpio.writeSync(gpioValue === 1 ? 1 : 0);
+      this.platform.log.info(`Set GPIO ${this.device.pin} to ${boolValue ? 'ON' : 'OFF'} (GPIO value: ${gpioValue})`);
+      callback(null);
+
+    } catch (error) {
+      this.platform.log.error(`Error reading GPIO ${this.device.pin}:`, error);
+      callback(error as Error);
+    }
   }
 
   private setupAccessoryInformation(): void {
@@ -99,20 +117,22 @@ export class RpiPlatformAccessoryGpioInput {
 
   private initGpio(): boolean {
     try {
-      const options = {
-        debounceTimeout: this.device.debounceMs || 100,
-      };
 
       // Create GPIO instance
-      this.gpio = new Gpio(this.device.pin, this.device.direction as Direction, 'both', options);
+      this.gpio = new Gpio(this.device.pin, this.device.direction as Direction);
 
       // read the first state and update state
       const initValue = this.gpio.readSync();
-      this.lastValue = initValue;
-      this.updateSensorState(initValue);
+      let effectiveValue = initValue === 1;
 
-      // watchdog
-      this.setupGpioWatchDog();
+      if (this.device.invertState) {
+        effectiveValue = !effectiveValue;
+      }
+
+      this.currentState = effectiveValue;
+      this.service.updateCharacteristic(this.platform.Characteristic.On, this.currentState);
+
+      this.platform.log.debug(`GPIO ${this.device.pin} initialized with state: ${this.currentState ? 'ON' : 'OFF'}`);
 
       return true;
 
@@ -135,39 +155,4 @@ export class RpiPlatformAccessoryGpioInput {
     }
   }
 
-  private setupGpioWatchDog(): void {
-    if (!this.gpio) {
-      return;
-    }
-
-    this.gpio.watch((err, value) => {
-      if (err) {
-        this.platform.log.error(`Error watching GPIO ${this.device.pin}:`, err);
-        return;
-      }
-
-      if (value !== this.lastValue) {
-        this.updateSensorState(value);
-        this.lastValue = value;
-      }
-
-    });
-
-  }
-
-  private updateSensorState(value: number): void {
-    let effectiveValue = value;
-
-    // invert value
-    if (this.device.invertState) {
-      effectiveValue = value === 1 ? 0 : 1;
-    }
-
-    const state = effectiveValue === 1
-      ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
-      : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
-
-    this.platform.log.info(`GPIO ${this.device.pin} state changed: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
-    this.service.updateCharacteristic(this.platform.Characteristic.ContactSensorState, state);
-  }
 }
