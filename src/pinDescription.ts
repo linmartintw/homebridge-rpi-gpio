@@ -1,14 +1,5 @@
-/**
- * GPIO device configuration interface
- */
-export interface GpioDevice {
-    group: string;
-    pin: number;
-    direction: string;
-    bcmPort: string;
-    invertState: boolean;
-    debounceMs: number;
-  }
+import { GpioDevice } from './gpioCommon';
+
 
 /**
    * Define two fixed GPIO input devices as contact sensors
@@ -59,6 +50,30 @@ export const exampleDevices: GpioDevice[] = [
     pin: 533,
     direction: 'out',
     bcmPort: 'GPIO21',
+    invertState: false,
+    debounceMs: 100,
+  },
+  {
+    group: 'group2',
+    pin: 532,
+    direction: 'out',
+    bcmPort: 'GPIO20',
+    invertState: false,
+    debounceMs: 100,
+  },
+  {
+    group: 'group3',
+    pin: 528,
+    direction: 'out',
+    bcmPort: 'GPIO16',
+    invertState: false,
+    debounceMs: 100,
+  },
+  {
+    group: 'group4',
+    pin: 524,
+    direction: 'out',
+    bcmPort: 'GPIO12',
     invertState: false,
     debounceMs: 100,
   },

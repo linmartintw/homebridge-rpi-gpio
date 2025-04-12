@@ -2,10 +2,9 @@ import {
   CharacteristicEventTypes,
   CharacteristicGetCallback,
   type PlatformAccessory,
-  type Service,
 } from 'homebridge';
 import type { RpiHomebridgePlatform } from './rpiPlatform.js';
-import { GpioDevice } from './pinDescription.js';
+import { GpioBase } from './gpioCommon.js';
 import { Direction, Gpio } from 'onoff';
 
 /**
@@ -13,49 +12,25 @@ import { Direction, Gpio } from 'onoff';
  * An instance of this class is created for each accessory your platform registers
  * Each accessory may expose multiple services of different service types.
  */
-export class RpiPlatformAccessoryGpioInput {
-  private service: Service;
-  private device: GpioDevice;
-  private gpio: Gpio | null = null;
+export class RpiPlatformAccessoryGpioInput extends GpioBase {
   private lastValue: number = 0;
 
-
   constructor(
-    private readonly platform: RpiHomebridgePlatform,
-    private readonly accessory: PlatformAccessory,
+    platform: RpiHomebridgePlatform,
+    accessory: PlatformAccessory,
   ) {
+    super(platform, accessory, platform.Service.ContactSensor);
 
-    // Get the device information from accessory context
-    this.device = accessory.context.device;
+  }
 
-    const accessoryDisplayName = `${this.device.group}-${this.device.direction}-${this.device.bcmPort}`;
-
-    // create ContactSensor service
-    this.service = this.accessory.getService(this.platform.Service.ContactSensor) ||
-      this.accessory.addService(this.platform.Service.ContactSensor);
-
-    // set the service name, this is what is displayed as the default name on the Home app
-    // in this example we are using the name we stored in the `accessory.context` in the `discoverDevices` method.
-    this.service.setCharacteristic(this.platform.Characteristic.Name, accessoryDisplayName);
-
-
+  protected override setupServiceHandling(): void {
     // set the handler of GET
     this.service.getCharacteristic(this.platform.Characteristic.ContactSensorState)
-      .on(CharacteristicEventTypes.GET,this.getState.bind(this));
+      .on(CharacteristicEventTypes.GET, this.getState.bind(this));
+  }
 
-    // set accessory information
-    this.setupAccessoryInformation();
-
-    // initialization Gpio
-    if (this.initGpio()) {
-      this.platform.log.info(`GPIO Contact Sensor initialized on pin ${this.device.pin}`);
-    }
-
-    // Setup Gpio shutdown hook
-    this.platform.api.on('shutdown', () => {
-      this.unexportGpio();
-    });
-
+  protected override onGpioInitialized(): void {
+    this.platform.log.info(`GPIO Contact Sensor initialized on pin ${this.device.pin}`);
   }
 
   getState(callback: CharacteristicGetCallback): void {
@@ -69,13 +44,15 @@ export class RpiPlatformAccessoryGpioInput {
         return;
       }
 
-      let effectiveValue = value;
-      if (this.device.invertState) {
-        effectiveValue = value === 1 ? 0 : 1;
-      }
-      const state = effectiveValue === 1
-        ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
-        : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
+      const effectiveValue = this.applyInversion(value);
+
+      const state = effectiveValue === 0
+        ? this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED
+        : this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
+
+      // Update the state in the state manager
+      const booleanState = effectiveValue === 0;
+      this.platform.gpioStateManager.updateStateGpioInput(this.device.pin, booleanState);
 
       this.platform.log.debug(`Read sensor state for GPIO ${this.device.pin}: ${effectiveValue} ` +
         `(${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
@@ -89,14 +66,7 @@ export class RpiPlatformAccessoryGpioInput {
 
   }
 
-  private setupAccessoryInformation(): void {
-    this.accessory.getService(this.platform.Service.AccessoryInformation)!
-      .setCharacteristic(this.platform.Characteristic.Manufacturer, 'Default-Manufacturer')
-      .setCharacteristic(this.platform.Characteristic.Model, 'Default-Model')
-      .setCharacteristic(this.platform.Characteristic.SerialNumber, 'Default-Serial');
-  }
-
-  private initGpio(): boolean {
+  protected initGpio(): boolean {
     try {
       const options = {
         debounceTimeout: this.device.debounceMs || 100,
@@ -121,18 +91,6 @@ export class RpiPlatformAccessoryGpioInput {
     }
   }
 
-  async unexportGpio() {
-    try {
-      if (this.gpio) {
-        this.gpio.unwatchAll();
-        await this.gpio.unexport();
-        this.gpio = null;
-        this.platform.log.info(`GPIO pin ${this.device.pin} resources released`);
-      }
-    } catch (error) {
-      this.platform.log.error(`Error releasing GPIO ${this.device.pin}:`, error);
-    }
-  }
 
   private setupGpioWatchDog(): void {
     if (!this.gpio) {
@@ -155,18 +113,17 @@ export class RpiPlatformAccessoryGpioInput {
   }
 
   private updateSensorState(value: number): void {
-    let effectiveValue = value;
+    const effectiveValue = this.applyInversion(value);
 
-    // invert value
-    if (this.device.invertState) {
-      effectiveValue = value === 1 ? 0 : 1;
-    }
+    const state = effectiveValue === 0
+      ? this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED
+      : this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED;
 
-    const state = effectiveValue === 1
-      ? this.platform.Characteristic.ContactSensorState.CONTACT_NOT_DETECTED
-      : this.platform.Characteristic.ContactSensorState.CONTACT_DETECTED;
+    const booleanState = effectiveValue === 0;
+    this.platform.gpioStateManager.updateStateGpioInput(this.device.pin, booleanState);
 
-    this.platform.log.info(`GPIO ${this.device.pin} state changed: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
+    this.platform.log.info(`GPIO ${this.device.pin} value: ${value} ` +
+      `state changed: ${effectiveValue} (${state === 0 ? 'CONTACT DETECTED' : 'CONTACT NOT DETECTED'})`);
     this.service.updateCharacteristic(this.platform.Characteristic.ContactSensorState, state);
   }
 }

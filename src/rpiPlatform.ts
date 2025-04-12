@@ -1,5 +1,5 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
-
+import { GpioStateManager } from './gpioCommon.js';
 import { RpiPlatformAccessoryGpioInput } from './platformAccessoryGpioInput.js';
 import { RpiPlatformAccessoryGpioOutput } from './platformAccessoryGpioOutput.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
@@ -27,6 +27,9 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public readonly CustomCharacteristics: any;
 
+  // GPIO state manager
+  public readonly gpioStateManager: GpioStateManager;
+
   constructor(
     public readonly log: Logging,
     public readonly config: PlatformConfig,
@@ -34,6 +37,9 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
   ) {
     this.Service = api.hap.Service;
     this.Characteristic = api.hap.Characteristic;
+
+    // Initialize the GPIO state manager
+    this.gpioStateManager = new GpioStateManager(this.log);
 
     // This is only required when using Custom Services and Characteristics not support by HomeKit
     this.CustomServices = new EveHomeKitTypes(this.api).Services;
@@ -50,6 +56,13 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
       // run the method to discover / register your devices as accessories
       this.discoverDevices();
     });
+
+
+
+    setInterval(() => {
+      this.gpioStateManager.displayAllGpioStates();
+    }, 1000);
+
   }
 
   /**
