@@ -21,6 +21,10 @@ export class RpiPlatformAccessoryGpioInput extends GpioBase {
   ) {
     super(platform, accessory, platform.Service.ContactSensor);
 
+    if (this.device.group) {
+      this.platform.log.debug(`Registering input pin ${this.device.pin} to group ${this.device.group}`);
+      this.platform.gpioStateManager.registerPinToGroup(this.device.pin, this.device.group);
+    }
   }
 
   protected override setupServiceHandling(): void {

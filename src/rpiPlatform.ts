@@ -57,11 +57,9 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
       this.discoverDevices();
     });
 
-
-
-    setInterval(() => {
-      this.gpioStateManager.displayAllGpioStates();
-    }, 1000);
+    // setInterval(() => {
+    //   this.gpioStateManager.displayAllGpioStates();
+    // }, 1000);
 
   }
 

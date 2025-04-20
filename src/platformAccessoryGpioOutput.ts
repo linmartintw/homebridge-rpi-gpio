@@ -23,6 +23,10 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   ) {
     super(platform, accessory, platform.Service.Switch);
 
+    if (this.device.group) {
+      this.platform.log.debug(`Registering output pin ${this.device.pin} to group ${this.device.group}`);
+      this.platform.gpioStateManager.registerPinToGroup(this.device.pin, this.device.group);
+    }
   }
 
   protected override setupServiceHandling(): void {
@@ -96,7 +100,7 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   }
 
   protected override updateBasedOnInputs(): void {
-    const allInputsInactive = this.checkAllInputsState();
+    const allInputsInactive = this.checkAllInputsStateByGroup(this.device.group);
 
     if (allInputsInactive === this.currentState) {
       return;

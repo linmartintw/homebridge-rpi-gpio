@@ -137,6 +137,20 @@ export abstract class GpioBase {
      return allInactive;
    }
 
+   protected checkAllInputsStateByGroup(group: string): boolean {
+     const allInputStates = this.platform.gpioStateManager.getAllStateGpioInput().filter(input => input.group === group);
+
+     if (allInputStates.length === 0) {
+       this.platform.log.debug(`No inputs found for group: ${group}`);
+       return false;
+     }
+
+     const allInactive = allInputStates.every(input => input.state === false);
+
+     this.platform.log.debug(`All GPIO inputs state check for ${group} ${allInactive}`);
+     return allInactive;
+   }
+
    protected updateBasedOnInputs(): void {}
 
    protected readCurrentGpioState(): boolean | undefined {
@@ -199,14 +213,27 @@ export abstract class GpioBase {
  */
 export class GpioStateManager {
   private stateGpioInput: Array<{
+    group?: string;
     pin: number;
     state: boolean;
     lastUpdated: number;
   }> = [];
 
+  private pinToGroupMap: Map<number, string> = new Map();
+
+
   constructor(
     private readonly log: Logging,
   ) {}
+
+  public registerPinToGroup(pin: number, group: string): void {
+    this.pinToGroupMap.set(pin, group);
+    this.log.debug(`Registered pin ${pin} to group ${group}`);
+  }
+
+  public getGroupForPin(pin: number): string | undefined {
+    return this.pinToGroupMap.get(pin);
+  }
 
   /**
    * Update the state of a GPIO input
@@ -216,23 +243,28 @@ export class GpioStateManager {
   public updateStateGpioInput(pin: number, state: boolean): void {
     const existingIndex = this.stateGpioInput.findIndex(item => item.pin === pin);
     const now = Date.now();
+    const group = this.getGroupForPin(pin);
 
     if (existingIndex >= 0) {
       this.stateGpioInput[existingIndex] = {
+        group,
         pin,
         state,
         lastUpdated: now,
       };
     } else {
       this.stateGpioInput.push({
+        group,
         pin,
         state,
         lastUpdated: now,
       });
     }
 
-    this.log.debug(`Updated GPIO input state: pin ${pin} = ${state ? 'CONTACT_DETECTED' : 'CONTACT_NOT_DETECTED'}`);
+    this.log.debug(`Updated GPIO input state: ${group} pin ${pin} = ${state ? 'CONTACT_DETECTED' : 'CONTACT_NOT_DETECTED'}`);
   }
+
+
 
   /**
    * Get the state of a GPIO input
@@ -248,7 +280,7 @@ export class GpioStateManager {
    * Get all GPIO input states
    * @returns Array of all GPIO input states
    */
-  public getAllStateGpioInput(): Array<{pin: number; state: boolean; lastUpdated: number}> {
+  public getAllStateGpioInput(): Array<{group?: string, pin: number; state: boolean; lastUpdated: number}> {
     return [...this.stateGpioInput];
   }
 
@@ -268,14 +300,15 @@ export class GpioStateManager {
     console.log('\n----- GPIO States at ' + timestamp + ' -----');
 
     // Header
-    console.log('Pin\tState\t\t\tLast Updated');
-    console.log('---\t-----\t\t\t------------');
+    console.log('Group\tPin\tState\t\t\tLast Updated');
+    console.log('-----\t---\t-----\t\t\t------------');
 
     // State data
     for (const record of states) {
+      const group = record.group || 'N/A';
       const stateText = record.state ? 'CONTACT_DETECTED' : 'CONTACT_NOT_DETECTED';
       const lastUpdated = new Date(record.lastUpdated).toLocaleTimeString();
-      console.log(`${record.pin}\t${stateText}\t${lastUpdated}`);
+      console.log(`${group}\t${record.pin}\t${stateText}\t${lastUpdated}`);
     }
 
     console.log('-------------------------------------\n');
