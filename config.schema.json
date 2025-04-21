@@ -1,17 +1,161 @@
 {
-  "pluginAlias": "RpiHomebridgePlugin",
-  "pluginType": "platform",
-  "singular": true,
-  "strictValidation": false,
-  "schema": {
-    "type": "object",
-    "properties": {
-      "name": {
-        "title": "Name",
-        "type": "string",
-        "required": true,
-        "default": "Rpi Dynamic Platform"
+    "pluginAlias": "Rpi Gpio Monitor",
+    "pluginType": "platform",
+    "singular": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string",
+          "default": "RpiHomebridgePlugin",
+          "required": true
+        },
+        "deviceGroups": {
+          "title": "GPIO Device Groups",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "groupName": {
+                "title": "Group Name",
+                "type": "string",
+                "description": "A unique name for this group",
+                "placeholder": "e.g. group1, LivingRoom, etc.",
+                "required": true
+              },
+              "inputDebounceMs": {
+                "title": "Input Debounce Time (ms)",
+                "type": "integer",
+                "description": "Debounce time in milliseconds for all input devices in this group",
+                "minimum": 0,
+                "default": 250
+              },
+              "inputs": {
+                "title": "Input Devices",
+                "type": "array",
+                "description": "GPIO input devices in this group (contact sensors)",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "title": "Device Name",
+                      "type": "string",
+                      "placeholder": "e.g. Door Sensor, Window Sensor",
+                      "required": true
+                    },
+                    "bcmPort": {
+                      "title": "GPIO (BCM) Port",
+                      "type": "string",
+                      "description": "Select a BCM GPIO port",
+                      "placeholder": "e.g. GPIO0 (gpio-512)",
+                      "required": true,
+                      "oneOf": [
+                        {"title": "GPIO0 (gpio-512)", "enum": ["GPIO0"]},
+                        {"title": "GPIO1 (gpio-513)", "enum": ["GPIO1"]},
+                        {"title": "GPIO2 (gpio-514)", "enum": ["GPIO2"]},
+                        {"title": "GPIO3 (gpio-515)", "enum": ["GPIO3"]},
+                        {"title": "GPIO4 (gpio-516)", "enum": ["GPIO4"]},
+                        {"title": "GPIO5 (gpio-517)", "enum": ["GPIO5"]},
+                        {"title": "GPIO6 (gpio-518)", "enum": ["GPIO6"]},
+                        {"title": "GPIO7 (gpio-519)", "enum": ["GPIO7"]},
+                        {"title": "GPIO8 (gpio-520)", "enum": ["GPIO8"]},
+                        {"title": "GPIO9 (gpio-521)", "enum": ["GPIO9"]},
+                        {"title": "GPIO10 (gpio-522)", "enum": ["GPIO10"]},
+                        {"title": "GPIO11 (gpio-523)", "enum": ["GPIO11"]},
+                        {"title": "GPIO12 (gpio-524)", "enum": ["GPIO12"]},
+                        {"title": "GPIO13 (gpio-525)", "enum": ["GPIO13"]},
+                        {"title": "GPIO14 (gpio-526)", "enum": ["GPIO14"]},
+                        {"title": "GPIO15 (gpio-527)", "enum": ["GPIO15"]},
+                        {"title": "GPIO16 (gpio-528)", "enum": ["GPIO16"]},
+                        {"title": "GPIO17 (gpio-529)", "enum": ["GPIO17"]},
+                        {"title": "GPIO18 (gpio-530)", "enum": ["GPIO18"]},
+                        {"title": "GPIO19 (gpio-531)", "enum": ["GPIO19"]},
+                        {"title": "GPIO20 (gpio-532)", "enum": ["GPIO20"]},
+                        {"title": "GPIO21 (gpio-533)", "enum": ["GPIO21"]},
+                        {"title": "GPIO22 (gpio-534)", "enum": ["GPIO22"]},
+                        {"title": "GPIO23 (gpio-535)", "enum": ["GPIO23"]},
+                        {"title": "GPIO24 (gpio-536)", "enum": ["GPIO24"]},
+                        {"title": "GPIO25 (gpio-537)", "enum": ["GPIO25"]},
+                        {"title": "GPIO26 (gpio-538)", "enum": ["GPIO26"]},
+                        {"title": "GPIO27 (gpio-539)", "enum": ["GPIO27"]}
+                      ]
+                    },
+                    "invertState": {
+                      "title": "Invert State",
+                      "type": "boolean",
+                      "description": "Invert the state of this input (true = inverted)",
+                      "default": false
+                    }
+                  }
+                }
+              },
+              "output": {
+                "title": "Output Device",
+                "type": "object",
+                "description": "GPIO output device for this group (switch)",
+                "properties": {
+                  "name": {
+                    "title": "Device Name",
+                    "type": "string",
+                    "placeholder": "e.g. Light Switch, Fan Control",
+                    "required": true
+                  },
+                  "bcmPort": {
+                    "title": "GPIO (BCM) Port",
+                    "type": "string",
+                    "description": "Select a BCM GPIO port",
+                    "placeholder": "e.g. GPIO2 (gpio-514)",
+                    "required": true,
+                    "oneOf": [
+                      {"title": "GPIO0 (gpio-512)", "enum": ["GPIO0"]},
+                      {"title": "GPIO1 (gpio-513)", "enum": ["GPIO1"]},
+                      {"title": "GPIO2 (gpio-514)", "enum": ["GPIO2"]},
+                      {"title": "GPIO3 (gpio-515)", "enum": ["GPIO3"]},
+                      {"title": "GPIO4 (gpio-516)", "enum": ["GPIO4"]},
+                      {"title": "GPIO5 (gpio-517)", "enum": ["GPIO5"]},
+                      {"title": "GPIO6 (gpio-518)", "enum": ["GPIO6"]},
+                      {"title": "GPIO7 (gpio-519)", "enum": ["GPIO7"]},
+                      {"title": "GPIO8 (gpio-520)", "enum": ["GPIO8"]},
+                      {"title": "GPIO9 (gpio-521)", "enum": ["GPIO9"]},
+                      {"title": "GPIO10 (gpio-522)", "enum": ["GPIO10"]},
+                      {"title": "GPIO11 (gpio-523)", "enum": ["GPIO11"]},
+                      {"title": "GPIO12 (gpio-524)", "enum": ["GPIO12"]},
+                      {"title": "GPIO13 (gpio-525)", "enum": ["GPIO13"]},
+                      {"title": "GPIO14 (gpio-526)", "enum": ["GPIO14"]},
+                      {"title": "GPIO15 (gpio-527)", "enum": ["GPIO15"]},
+                      {"title": "GPIO16 (gpio-528)", "enum": ["GPIO16"]},
+                      {"title": "GPIO17 (gpio-529)", "enum": ["GPIO17"]},
+                      {"title": "GPIO18 (gpio-530)", "enum": ["GPIO18"]},
+                      {"title": "GPIO19 (gpio-531)", "enum": ["GPIO19"]},
+                      {"title": "GPIO20 (gpio-532)", "enum": ["GPIO20"]},
+                      {"title": "GPIO21 (gpio-533)", "enum": ["GPIO21"]},
+                      {"title": "GPIO22 (gpio-534)", "enum": ["GPIO22"]},
+                      {"title": "GPIO23 (gpio-535)", "enum": ["GPIO23"]},
+                      {"title": "GPIO24 (gpio-536)", "enum": ["GPIO24"]},
+                      {"title": "GPIO25 (gpio-537)", "enum": ["GPIO25"]},
+                      {"title": "GPIO26 (gpio-538)", "enum": ["GPIO26"]},
+                      {"title": "GPIO27 (gpio-539)", "enum": ["GPIO27"]}
+                    ]
+                  },
+                  "invertState": {
+                    "title": "Invert State",
+                    "type": "boolean",
+                    "description": "Invert the state of this output (true = inverted)",
+                    "default": false
+                  },
+                  "pollIntervalMs": {
+                    "title": "Polling Interval (ms)",
+                    "type": "integer",
+                    "description": "How often to check input states to update output (0 = disable)",
+                    "minimum": 0,
+                    "default": 1000
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
-}

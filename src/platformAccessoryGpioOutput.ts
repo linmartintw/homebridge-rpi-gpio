@@ -44,7 +44,7 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
       this.platform.log.debug(`Running initial update for GPIO ${this.device.pin} after initialization`);
     }, 1000);
 
-    const pollingInverval = 1000;
+    const pollingInverval = this.device.pollIntervalMs || 1000;
     this.setupPolling(pollingInverval, this.updateBasedOnInputs.bind(this));
   }
 

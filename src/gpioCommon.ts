@@ -6,12 +6,14 @@ import type { RpiHomebridgePlatform } from './rpiPlatform.js';
  * GPIO device configuration interface
  */
 export interface GpioDevice {
+  name?: string;
   group: string;
   pin: number;
   direction: string;
   bcmPort: string;
   invertState: boolean;
   debounceMs: number;
+  pollIntervalMs?: number;
 }
 
 /**
@@ -31,7 +33,9 @@ export abstract class GpioBase {
     // Get the device information from accessory context
     this.device = accessory.context.device;
 
-    const accessoryDisplayName = `${this.device.group}-${this.device.direction}-${this.device.bcmPort}`;
+    const accessoryDisplayName = this.device.name
+      ? `${this.device.group}-${this.device.name}`
+      : `${this.device.group}-${this.device.direction}-${this.device.bcmPort}`;
 
     // Create service based on the provided service type
     this.service = this.accessory.getService(serviceType) ||

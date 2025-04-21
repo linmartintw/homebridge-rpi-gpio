@@ -73,7 +73,7 @@ export class RpiPlatformAccessoryGpioInput extends GpioBase {
   protected initGpio(): boolean {
     try {
       const options = {
-        debounceTimeout: this.device.debounceMs || 100,
+        debounceTimeout: this.device.debounceMs,
       };
 
       // Create GPIO instance

@@ -1,5 +1,5 @@
 import type { API, Characteristic, DynamicPlatformPlugin, Logging, PlatformAccessory, PlatformConfig, Service } from 'homebridge';
-import { GpioStateManager } from './gpioCommon.js';
+import { GpioDevice, GpioStateManager } from './gpioCommon.js';
 import { RpiPlatformAccessoryGpioInput } from './platformAccessoryGpioInput.js';
 import { RpiPlatformAccessoryGpioOutput } from './platformAccessoryGpioOutput.js';
 import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
@@ -7,6 +7,29 @@ import { PLATFORM_NAME, PLUGIN_NAME } from './settings.js';
 // This is only required when using Custom Services and Characteristics not support by HomeKit
 import { EveHomeKitTypes } from 'homebridge-lib/EveHomeKitTypes';
 import { exampleDevices } from './pinDescription.js';
+
+
+// 定義配置接口
+interface DeviceGroup {
+    groupName: string;
+    inputDebounceMs?: number;
+    inputs?: InputDevice[];
+    output?: OutputDevice;
+  }
+
+  interface InputDevice {
+    name: string;
+    bcmPort: string;
+    invertState?: boolean;
+  }
+
+  interface OutputDevice {
+    name: string;
+    bcmPort: string;
+    invertState?: boolean;
+    pollIntervalMs?: number;
+  }
+
 
 /**
  * RpiHomebridgePlatform
@@ -29,6 +52,8 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
 
   // GPIO state manager
   public readonly gpioStateManager: GpioStateManager;
+
+  private deviceConfigs: GpioDevice[] = [];
 
   constructor(
     public readonly log: Logging,
@@ -53,6 +78,10 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
     // to start discovery of new accessories.
     this.api.on('didFinishLaunching', () => {
       log.debug('Executed didFinishLaunching callback');
+
+      // 從配置加載設備
+      this.loadDeviceConfigs();
+
       // run the method to discover / register your devices as accessories
       this.discoverDevices();
     });
@@ -62,6 +91,100 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
     // }, 1000);
 
   }
+
+  /**
+   * 從BCM port字符串獲取GPIO pin number
+   * @param bcmPort BCM port字符串，如 'GPIO2'
+   * @returns GPIO pin number，如果無效則返回-1
+   */
+  private getGpioPin(bcmPort: string): number {
+    const match = bcmPort.match(/GPIO(\d+)/i);
+    if (match && match[1]) {
+      const gpioNumber = parseInt(match[1], 10);
+      return 512 + gpioNumber; // GPIO0 = 512, GPIO1 = 513, 等等
+    }
+    return -1;
+  }
+
+  /**
+   * 從配置文件中加載設備配置
+   */
+  private loadDeviceConfigs() {
+    // 清空當前設備配置
+    this.deviceConfigs = [];
+
+    // 從配置中獲取設備群組
+    const deviceGroups = this.config.deviceGroups as DeviceGroup[] || [];
+    this.log.info(`Loading ${deviceGroups.length} device groups from config`);
+
+    // 處理每個設備群組
+    deviceGroups.forEach(group => {
+      const groupName = group.groupName;
+
+      // 獲取群組級別的輸入去抖動時間，如果未設置則使用默認值 250ms
+      const inputDebounceMs = group.inputDebounceMs !== undefined ? group.inputDebounceMs : 250;
+
+      // 處理輸入設備
+      if (group.inputs && Array.isArray(group.inputs)) {
+        group.inputs.forEach(input => {
+          // 從BCM port獲取GPIO pin number
+          const pin = this.getGpioPin(input.bcmPort);
+
+          if (pin === -1) {
+            this.log.error(`Invalid BCM port: ${input.bcmPort}`);
+            return;
+          }
+
+          const device: GpioDevice = {
+            name: input.name,
+            group: groupName,
+            pin: pin,
+            bcmPort: input.bcmPort,
+            direction: 'in',
+            invertState: !!input.invertState,
+            debounceMs: inputDebounceMs, // 使用群組級別的去抖動時間
+          };
+
+          this.deviceConfigs.push(device);
+          this.log.debug(`Added input device: ${device.name}, BCM: ${device.bcmPort}, pin: ${pin}, group: ${device.group}, debounceMs: ${device.debounceMs}`);
+        });
+      }
+
+      // 處理輸出設備 (保留原有的個別設置)
+      if (group.output) {
+        // 從BCM port獲取GPIO pin number
+        const pin = this.getGpioPin(group.output.bcmPort);
+
+        if (pin === -1) {
+          this.log.error(`Invalid BCM port: ${group.output.bcmPort}`);
+          return;
+        }
+
+        const device: GpioDevice = {
+          name: group.output.name,
+          group: groupName,
+          pin: pin,
+          bcmPort: group.output.bcmPort,
+          direction: 'out',
+          invertState: !!group.output.invertState,
+          debounceMs: 0,
+          pollIntervalMs: group.output.pollIntervalMs,
+        };
+
+        this.deviceConfigs.push(device);
+        this.log.debug(`Added output device: ${device.name}, BCM: ${device.bcmPort}, pin: ${pin}, group: ${device.group}`);
+      }
+    });
+
+    this.log.info(`Loaded ${this.deviceConfigs.length} total devices from config`);
+
+    // 如果沒有從配置中讀取到設備，使用示例設備
+    if (this.deviceConfigs.length === 0) {
+      this.log.warn('No devices found in config, using example devices');
+      this.deviceConfigs = [...exampleDevices];
+    }
+  }
+
 
   /**
    * This function is invoked when homebridge restores cached accessories from disk at startup.
@@ -81,9 +204,9 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
    */
   discoverDevices() {
     // loop over the discovered devices and register each one if it has not already been registered
-    for (const device of exampleDevices) {
+    for (const device of this.deviceConfigs) {
 
-      const accessoryDisplayName = `${device.group}-${device.direction}-${device.bcmPort}`;
+      const accessoryDisplayName = device.name ? `${device.group}-${device.name}` : `${device.group}-${device.direction}-${device.bcmPort}`;
 
       // generate a unique id for the accessory this should be generated from
       // something globally unique, but constant, for example, the device serial
