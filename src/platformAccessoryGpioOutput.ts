@@ -49,32 +49,17 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   }
 
   getOn(callback: CharacteristicGetCallback): void {
-    const value = this.readCurrentGpioState();
-
-    if (value !== undefined) {
-      this.currentState = value;
-    }
-    callback(null, value !== undefined ? value : false);
+    const state = this.booleanToGpioValueWithInversion(this.currentState);
+    this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+    this.platform.log.debug(`Get GPIO ${this.device.pin} state from cached value: logical=${this.currentState}, invertState=${this.device.invertState}, homekit=${state}`);
+    callback(null, state);
   }
 
   setOn(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
-    try {
-      const newState = !this.currentState;
-
-      if (this.setGpioState(newState)) {
-        this.currentState = newState;
-        this.service.updateCharacteristic(this.platform.Characteristic.On, newState);
-
-        this.platform.log.info(`Toggled GPIO ${this.device.pin} to ${newState ? 'ON' : 'OFF'}`);
-        callback(null);
-      } else {
-        this.platform.log.error(`Failed to toggle GPIO ${this.device.pin}`);
-        callback(new Error(`Failed to toggle GPIO ${this.device.pin}`));
-      }
-    } catch (error) {
-      this.platform.log.error(`Error toggling GPIO ${this.device.pin}:`, error);
-      callback(error as Error);
-    }
+    callback(null);
+    const state = this.booleanToGpioValueWithInversion(this.currentState);
+    this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+    this.platform.log.debug(`Reverted UI state for GPIO ${this.device.pin}: logical=${this.currentState}, homekit=${state}`);
   }
 
   protected initGpio(): boolean {
@@ -107,9 +92,10 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
     }
 
     if (this.setGpioState(allInputsInactive)) {
-      this.service.updateCharacteristic(this.platform.Characteristic.On, allInputsInactive);
+      const state = this.booleanToGpioValueWithInversion(allInputsInactive);
+      this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+      this.platform.log.info(`GPIO ${this.device.pin} state changing to ${allInputsInactive} (inverted: ${this.device.invertState}, state: ${state})`);
       this.currentState = allInputsInactive;
-      this.platform.log.info(`GPIO ${this.device.pin} state changing to ${allInputsInactive}`);
     }
   }
 }

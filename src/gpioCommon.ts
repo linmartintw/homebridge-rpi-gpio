@@ -149,7 +149,9 @@ export abstract class GpioBase {
        return false;
      }
 
-     const allInactive = allInputStates.every(input => input.state === false);
+     //  change condition from AND-gate to OR-gate
+     //  const allInactive = allInputStates.every(input => input.state === false);
+     const allInactive = allInputStates.every(input => input.state === true);
 
      this.platform.log.debug(`All GPIO inputs state check for ${group} ${allInactive}`);
      return allInactive;
@@ -185,7 +187,8 @@ export abstract class GpioBase {
        const gpioValue = this.booleanToGpioValueWithInversion(state);
        this.gpio.writeSync(gpioValue ? 1 : 0);
 
-       this.platform.log.debug(`Set GPIO ${this.device.pin} to ${state ? 'ON' : 'OFF'} (GPIO value: ${gpioValue})`);
+       this.platform.log.debug(`Setting GPIO ${this.device.pin}: requested state=${state}, inverted=${this.device.invertState}, actual GPIO value=${gpioValue}`);
+
        return true;
      } catch (error) {
        this.platform.log.error(`Error setting GPIO ${this.device.pin}:`, error);
