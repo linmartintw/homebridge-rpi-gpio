@@ -13,7 +13,6 @@ import { Direction, Gpio } from 'onoff';
  * Each accessory may expose multiple services of different service types.
  */
 export class RpiPlatformAccessoryGpioInput extends GpioBase {
-  private lastValue: number = 0;
 
   constructor(
     platform: RpiHomebridgePlatform,
@@ -81,7 +80,6 @@ export class RpiPlatformAccessoryGpioInput extends GpioBase {
 
       // read the first state and update state
       const initValue = this.gpio.readSync();
-      this.lastValue = initValue;
       this.updateSensorState(initValue);
 
       // watchdog
@@ -107,11 +105,7 @@ export class RpiPlatformAccessoryGpioInput extends GpioBase {
         return;
       }
 
-      if (value !== this.lastValue) {
-        this.updateSensorState(value);
-        this.lastValue = value;
-      }
-
+      this.updateSensorState(value);
     });
 
   }
