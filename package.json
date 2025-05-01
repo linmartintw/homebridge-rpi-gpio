@@ -1,6 +1,6 @@
 {
   "name": "homebridge-rpi-gpio",
-  "displayName": "Rpi Gpio Monitor",
+  "displayName": "RpiHomebridgePlugin",
   "type": "module",
   "version": "1.0.0",
   "private": true,
