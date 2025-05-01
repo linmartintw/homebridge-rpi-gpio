@@ -20,21 +20,18 @@
               "groupName": {
                 "title": "Group Name",
                 "type": "string",
-                "description": "A unique name for this group",
                 "placeholder": "e.g. group1, LivingRoom, etc.",
                 "required": true
               },
               "inputDebounceMs": {
                 "title": "Input Debounce Time (ms)",
                 "type": "integer",
-                "description": "Debounce time in milliseconds for all input devices in this group",
                 "minimum": 0,
                 "default": 250
               },
               "inputs": {
                 "title": "Input Devices",
                 "type": "array",
-                "description": "GPIO input devices in this group (contact sensors)",
                 "items": {
                   "type": "object",
                   "properties": {
@@ -47,7 +44,6 @@
                     "bcmPort": {
                       "title": "GPIO (BCM) Port",
                       "type": "string",
-                      "description": "Select a BCM GPIO port",
                       "placeholder": "e.g. GPIO0 (gpio-512)",
                       "required": true,
                       "oneOf": [
@@ -84,7 +80,6 @@
                     "invertState": {
                       "title": "Invert State",
                       "type": "boolean",
-                      "description": "Invert the state of this input (true = inverted)",
                       "default": false
                     }
                   }
@@ -93,7 +88,6 @@
               "output": {
                 "title": "Output Device",
                 "type": "object",
-                "description": "GPIO output device for this group (switch)",
                 "properties": {
                   "name": {
                     "title": "Device Name",
@@ -104,7 +98,6 @@
                   "bcmPort": {
                     "title": "GPIO (BCM) Port",
                     "type": "string",
-                    "description": "Select a BCM GPIO port",
                     "placeholder": "e.g. GPIO2 (gpio-514)",
                     "required": true,
                     "oneOf": [
@@ -141,13 +134,11 @@
                   "invertState": {
                     "title": "Invert State",
                     "type": "boolean",
-                    "description": "Invert the state of this output (true = inverted)",
                     "default": false
                   },
                   "pollIntervalMs": {
                     "title": "Polling Interval (ms)",
                     "type": "integer",
-                    "description": "How often to check input states to update output (0 = disable)",
                     "minimum": 0,
                     "default": 1000
                   }
