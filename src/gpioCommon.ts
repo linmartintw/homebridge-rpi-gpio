@@ -14,6 +14,7 @@ export interface GpioDevice {
   invertState: boolean;
   debounceMs: number;
   pollIntervalMs?: number;
+  forceOutput?: boolean;
 }
 
 /**

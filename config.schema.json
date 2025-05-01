@@ -136,6 +136,11 @@
                     "type": "boolean",
                     "default": false
                   },
+                  "forceOutput": {
+                    "title": "Force Output",
+                    "type": "boolean",
+                    "default": false
+                  },
                   "pollIntervalMs": {
                     "title": "Polling Interval (ms)",
                     "type": "integer",

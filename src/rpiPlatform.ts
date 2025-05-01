@@ -27,6 +27,7 @@ interface DeviceGroup {
     name: string;
     bcmPort: string;
     invertState?: boolean;
+    forceOutput?: boolean;
     pollIntervalMs?: number;
   }
 
@@ -169,6 +170,7 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
           invertState: !!group.output.invertState,
           debounceMs: 0,
           pollIntervalMs: group.output.pollIntervalMs,
+          forceOutput: group.output.forceOutput,
         };
 
         this.deviceConfigs.push(device);
@@ -223,7 +225,7 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
 
         // if you need to update the accessory.context then you should run `api.updatePlatformAccessories`. e.g.:
         // existingAccessory.context.device = device;
-        // this.api.updatePlatformAccessories([existingAccessory]);
+        this.api.updatePlatformAccessories([existingAccessory]);
 
         // create the accessory handler for the restored accessory
         // this is imported from `platformAccessory.ts`
@@ -238,8 +240,8 @@ export class RpiHomebridgePlatform implements DynamicPlatformPlugin {
 
         // it is possible to remove platform accessories at any time using `api.unregisterPlatformAccessories`, e.g.:
         // remove platform accessories when no longer present
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
-        this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
+        // this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [existingAccessory]);
+        // this.log.info('Removing existing accessory from cache:', existingAccessory.displayName);
       } else {
 
         // the accessory does not yet exist, so we need to create it

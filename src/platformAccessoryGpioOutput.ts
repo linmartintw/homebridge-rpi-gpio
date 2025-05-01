@@ -56,10 +56,21 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   }
 
   setOn(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
-    callback(null);
-    const state = this.booleanToGpioValueWithInversion(this.currentState);
-    this.service.updateCharacteristic(this.platform.Characteristic.On, state);
-    this.platform.log.debug(`Reverted UI state for GPIO ${this.device.pin}: logical=${this.currentState}, homekit=${state}`);
+
+
+    if (this.device.forceOutput) {
+      const state = value === true;
+      if (this.setGpioState(state)) {
+        this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+        this.platform.log.info(`Toggled GPIO ${this.device.pin} to ${state ? 'ON' : 'OFF'}`);
+      }
+      callback(null);
+    } else {
+      callback(null);
+      const state = this.booleanToGpioValueWithInversion(this.currentState);
+      this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+      this.platform.log.debug(`Reverted UI state for GPIO ${this.device.pin}: logical=${this.currentState}, homekit=${state}`);
+    }
   }
 
   protected initGpio(): boolean {
