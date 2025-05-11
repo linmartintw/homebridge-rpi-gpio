@@ -188,7 +188,8 @@ export abstract class GpioBase {
        const gpioValue = this.booleanToGpioValueWithInversion(state);
        this.gpio.writeSync(gpioValue ? 1 : 0);
 
-       this.platform.log.debug(`Setting GPIO ${this.device.pin}: requested state=${state}, inverted=${this.device.invertState}, actual GPIO value=${gpioValue}`);
+       this.platform.log.debug(`Setting GPIO ${this.device.pin}: requested state=${state},` +
+        ` inverted=${this.device.invertState}, actual GPIO value=${gpioValue}`);
 
        return true;
      } catch (error) {

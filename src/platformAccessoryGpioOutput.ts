@@ -16,6 +16,7 @@ import { Direction, Gpio } from 'onoff';
  */
 export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   private currentState: boolean = false;
+  private currentForceState: boolean = false;
 
   constructor(
     platform: RpiHomebridgePlatform,
@@ -49,22 +50,30 @@ export class RpiPlatformAccessoryGpioOutput extends GpioBase {
   }
 
   getOn(callback: CharacteristicGetCallback): void {
-    const state = this.booleanToGpioValueWithInversion(this.currentState);
-    this.service.updateCharacteristic(this.platform.Characteristic.On, state);
-    this.platform.log.debug(`Get GPIO ${this.device.pin} state from cached value: logical=${this.currentState}, invertState=${this.device.invertState}, homekit=${state}`);
-    callback(null, state);
+
+    if (this.device.forceOutput) {
+      this.platform.log.debug(`Get GPIO ${this.device.pin} current state=${this.currentForceState}`);
+      callback(null, this.currentForceState);
+    } else {
+      const state = this.booleanToGpioValueWithInversion(this.currentState);
+      this.service.updateCharacteristic(this.platform.Characteristic.On, state);
+      this.platform.log.debug(`Get GPIO ${this.device.pin} state from cached value=${this.currentState},` +
+      ` invertState=${this.device.invertState}, homekit=${state}`);
+      callback(null, state);
+    }
   }
 
   setOn(value: CharacteristicValue, callback: CharacteristicSetCallback): void {
 
-
     if (this.device.forceOutput) {
-      const state = value === true;
+    //   const state = value === true;
+      const state = value as boolean;
       if (this.setGpioState(state)) {
         this.service.updateCharacteristic(this.platform.Characteristic.On, state);
         this.platform.log.info(`Toggled GPIO ${this.device.pin} to ${state ? 'ON' : 'OFF'}`);
+        this.currentForceState = state;
       }
-      callback(null);
+      callback();
     } else {
       callback(null);
       const state = this.booleanToGpioValueWithInversion(this.currentState);
